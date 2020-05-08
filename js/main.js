@@ -4,9 +4,6 @@ const cartButton = document.querySelector("#cart-button"); // получили �
 const modal = document.querySelector(".modal"); // получаем скрытое модальное окно
 const close = document.querySelector(".close"); // получаем кнопку "закрыть" модльного окна
 
-cartButton.addEventListener("click", toggleModal); // слушатель на кнопку корзина
-close.addEventListener("click", toggleModal); // слушатель на кнопку закрыть
-
 function toggleModal() { // при срабатывании слушателя
   modal.classList.toggle("is-open"); // добавляет-убирает класс "is-open"
 }
@@ -20,8 +17,26 @@ const logInForm = document.querySelector('#logInForm'); // внутреннос�
 const loginInput = document.querySelector('#login'); // логин формы вводаы
 const userName = document.querySelector('.user-name'); // span с именем пользователя
 const buttonOut = document.querySelector('.button-out'); // кнопка выхода
+const restaurantTitle = document.querySelector('.restaurant-title'); // название ресторана
+const rating = document.querySelector('.rating'); // рейтинг ресторана
+const minPrice = document.querySelector('.price'); // минимальная цена ресторана 
+const category = document.querySelector('.category'); // категория ресторана
+
 
 let login = localStorage.getItem('gloDelivery'); // получение имя пользователя из памяти
+
+            // ============================= day 3 ===============================================
+            // ==================== работа с базой данных ========================================  
+            const getData = async function(url) { // функция, которая делает запрос на сервер. async - делает ее асинхронной
+              const response = await fetch(url); // получили данные в ответ на запрос
+              if  (!response.ok) { // проверка, был ли запрос удачным
+                throw new Error(`Ошибка по адресу ${url}, статус ошибки ${response.status}!`); // ошибка - сбрасывает выполнение ф-ции и выводит указанное сообщение
+              }
+              return await response.json();
+            } ; 
+
+           
+            
 
 function toggleModalAuth() {
   modalAuth.classList.toggle("is-open"); // добавляет-убирает класс "is-open"
@@ -92,7 +107,7 @@ function checkAuth() {
   }
 };
 
-checkAuth(); 
+
 
 // ============================= day 2 ===============================================
 // ================== работа карточками ресторанов ===================================
@@ -104,22 +119,36 @@ const menu = document.querySelector('.menu'); // блок с меню ресто
 const logo = document.querySelector('.logo'); // логотип картинка
 const cardsMenu = document.querySelector('.cards-menu'); // меню ресторана 
 
-function createCardResttaurant() { // ф-ция по созданию карточек ресторанов
+function createCardResttaurant(restaurant) { // ф-ция по созданию карточек ресторанов
+  console.log(restaurant);
+  const { 
+    image, 
+    kitchen, 
+    name, 
+    price, 
+    stars, 
+    products, 
+    time_of_delivery: timeOfDelivery
+  } = restaurant; // проводим деструктуризацию restaurant
+
   
+
   const card = `
-    <a class="card card-restaurant"> 
-      <img src="img/tanuki/preview.jpg" alt="image" class="card-image"/>
+    <a class="card card-restaurant" 
+    data-products="${products}"
+    data-info="${[name, price, stars, kitchen]}">
+      <img src="${image}" alt="image" class="card-image"/>
        <div class="card-text">
         <div class="card-heading">
-          <h3 class="card-title">Тануки</h3>
-          <span class="card-tag tag">60 мин</span>
+          <h3 class="card-title">${name}</h3>
+          <span class="card-tag tag">${timeOfDelivery} мин</span>
         </div>
         <div class="card-info">
           <div class="rating">
-            4.5
+            ${stars}
           </div>
-          <div class="price">От 1 200 ₽</div>
-          <div class="category">Суши, роллы</div>
+          <div class="price">От ${price} ₽</div>
+          <div class="category">${kitchen}</div>
           </div>
         </div>
     </a>` ;// переменная с версткой карточки
@@ -127,41 +156,55 @@ function createCardResttaurant() { // ф-ция по созданию карто
     cardsRestaurants.insertAdjacentHTML('beforeend', card); // метод для вставки элементов на страницу
 };
 
-createCardResttaurant();
-createCardResttaurant();
-createCardResttaurant();
-
 function openGoods(event){ // ф-ция для открытия карточек ресторанов. Чтобы определить, на какую карточку мы кликнули использ event
   const target = event.target; // получаем элемент, на который кликнули 
   const restaurant = target.closest('.card-restaurant'); // поднимается вверх по родителям, пока не дойдет до нужного (вся карточка)
 
   if (restaurant) { // проверяем кликнули на карточку или мимо
-    containerPromo.classList.add('hide');  // скрыть блоки, которые сейчас на странице
-    restaurants.classList.add('hide'); // скрыть блоки, которые сейчас на странице
-    menu.classList.remove('hide'); // показать блок с меню ресторана, удалив класс hide
 
-    cardsMenu.textContent = ''; // очищаем меню ресторана, чтобы не было повторов при втором заходе
+    if (login) { // проверка, залогинился ли пользоатель
 
-    createCardGood(); // ф-ция для создания карточек с едой в ресторане
-    createCardGood();
-    createCardGood();
-    createCardGood();
+      const info = restaurant.dataset.info.split(',');
+      const [name, price, stars, kitchen] = info; 
+
+      containerPromo.classList.add('hide');  // скрыть блоки, которые сейчас на странице
+      restaurants.classList.add('hide'); // скрыть блоки, которые сейчас на странице
+      menu.classList.remove('hide'); // показать блок с меню ресторана, удалив класс hide
+      cardsMenu.textContent = ''; // очищаем меню ресторана, чтобы не было повторов при втором заходе
+
+      restaurantTitle.textContent = name; 
+      rating.textContent = stars; 
+      minPrice.textContent = 'От ' + price + ' ₽'; 
+      category.textContent = kitchen;
+
+      getData(`./db/${restaurant.dataset.products}`).then(function(data){
+        data.forEach(createCardGood);
+      });
+      
+    } else { // если пользователь не авторизовался, то вызываем окно авторизации
+      toggleModalAuth();
+    }
+
+
+    
   }
   
 };
 
-function createCardGood(){
+function createCardGood(goods){
+
+  const { description, id, image, name, price } = goods; 
+
   const card = document.createElement('div'); // создаем тег div 
   card.className = 'card'; // добавили созданному div класс card
   card.insertAdjacentHTML('beforeend',  `
-      <img src="img/pizza-plus/pizza-vesuvius.jpg" alt="image" class="card-image"/>
+      <img src="${image}" alt="${name}" class="card-image"/>
       <div class="card-text">
         <div class="card-heading">
-          <h3 class="card-title card-title-reg">Пицца Везувий</h3>
+          <h3 class="card-title card-title-reg">${name}</h3>
         </div>
         <div class="card-info">
-          <div class="ingredients">Соус томатный, сыр «Моцарелла», ветчина, пепперони, перец
-            «Халапенье», соус «Тобаско», томаты.
+          <div class="ingredients">${description}
           </div>
         </div>
         <div class="card-buttons">
@@ -169,7 +212,7 @@ function createCardGood(){
             <span class="button-card-text">В корзину</span>
             <span class="button-cart-svg"></span>
           </button>
-          <strong class="card-price-bold">545 ₽</strong>
+          <strong class="card-price-bold">${price} ₽</strong>
         </div>
       </div>
   `); // вставляем верстку в наш div
@@ -177,12 +220,26 @@ function createCardGood(){
   cardsMenu.insertAdjacentElement('beforeend', card); // вставляем созданную карточку с продуктом в меню ресторана
 };
 
-cardsRestaurants.addEventListener('click', openGoods);
-logo.addEventListener('click', function(){ // при клике на лого, вернуть все, как было, до клика на карточку ресторана
-  containerPromo.classList.remove('hide');  
-  restaurants.classList.remove('hide'); 
-  menu.classList.add('hide'); 
-});
 
-// ф-ция для формирования карточек блюд в ресторане
+function init() {
+  getData('./db/partners.json').then(function(data){ // ф-ция получения данных по запросу. then вызывает ф-цию после получения данных. data - полученные данные (массив)
+    data.forEach(createCardResttaurant); // сработает столько раз, сколько элементов у полученного массива data (то есть, мы получаем 6 карточек ресторанов)
+  }); 
+
+  cartButton.addEventListener("click", toggleModal); // слушатель на кнопку корзина
+  close.addEventListener("click", toggleModal); // слушатель на кнопку закрыть
+  cardsRestaurants.addEventListener('click', openGoods);
+
+  logo.addEventListener('click', function(){ // при клике на лого, вернуть все, как было, до клика на карточку ресторана
+    containerPromo.classList.remove('hide');  
+    restaurants.classList.remove('hide'); 
+    menu.classList.add('hide'); 
+  });
+
+  checkAuth(); 
+   
+};
+
+init();
+
 
